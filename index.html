@@ -1,51 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase One-Time Read (public)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Read Data (generated at build-time)</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; padding: 1.5rem; }
+    button { padding: .5rem 1rem; margin-right: .5rem; }
+    .hint { color: #666; font-size: .9rem; }
+    pre { background:#f6f8fa; padding: .75rem; border-radius:6px; overflow:auto; }
+  </style>
 </head>
 <body>
 
-    <h2>Read Data (generated at build-time)</h2>
-    <button id="readBtn">Load "test" Value</button>
-    
-    <p>Database Result: <strong id="resultDisplay">Click the button to load data...</strong></p>
+  <h2>Read Data (generated at build-time)</h2>
+  <p class="hint">This page expects a build-time generated file at <code>/data.json</code>. If that file
+    doesn't exist the page will not crash — use the demo fallback or run the build workflow.</p>
 
-    <script>
-      // This client-side code runs in the browser and must never contain secrets.
-      // It fetches a build-time generated file (/data.json) that was created by
-      // a GitHub Actions build step which used a secret on the server-side.
+  <button id="readBtn">Load "test" Value</button>
+  <button id="demoBtn">Use Demo Data</button>
+  <p>Database Result: <strong id="resultDisplay">Click the button to load data...</strong></p>
 
-      const readBtn = document.getElementById('readBtn');
-      const resultDisplay = document.getElementById('resultDisplay');
+  <div id="details" style="margin-top:1rem"></div>
 
-      readBtn.addEventListener('click', async () => {
-        resultDisplay.innerText = 'Loading...';
-        try {
-          const res = await fetch('/data.json', { cache: 'no-store' });
-          if (!res.ok) {
-            if (res.status === 404) {
-              resultDisplay.innerText = 'Data not found. Make sure the Actions build has run and generated /data.json.';
-            } else {
-              resultDisplay.innerText = 'Failed to load data: ' + res.status + ' ' + res.statusText;
-            }
-            return;
-          }
+  <script>
+    const readBtn = document.getElementById('readBtn');
+    const demoBtn = document.getElementById('demoBtn');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const details = document.getElementById('details');
 
-          const data = await res.json();
-          // If the build script wrote the value under the key "test", show it
-          if (data && Object.prototype.hasOwnProperty.call(data, 'test')) {
-            resultDisplay.innerText = JSON.stringify(data.test);
-          } else {
-            // otherwise show the whole payload
-            resultDisplay.innerText = JSON.stringify(data);
-          }
-        } catch (err) {
-          console.error('Fetch error', err);
-          resultDisplay.innerText = 'Error fetching data: ' + (err.message || err);
+    // store loaded data here if fetch succeeds
+    let loadedData = null;
+
+    async function tryLoadDataFile() {
+      try {
+        const res = await fetch('/data.json', { cache: 'no-store' });
+        if (!res.ok) {
+          // Not found or other HTTP error; show friendly hint but do not throw
+          details.innerHTML = `Build data not found on server (HTTP ${res.status}). If you expect this to be present, run the Actions build that generates <code>/data.json</code>.`;
+          return null;
         }
-      });
-    </script>
+        const data = await res.json();
+        details.innerHTML = 'Loaded build data from <code>/data.json</code>.';
+        return data;
+      } catch (err) {
+        // Network failure, CORS, or other issue — show friendly message
+        details.innerHTML = 'Could not fetch <code>/data.json</code> — network error or missing file. The page will use a demo fallback if you choose.';
+        return null;
+      }
+    }
+
+    readBtn.addEventListener('click', async () => {
+      resultDisplay.innerText = 'Loading...';
+      try {
+        if (!loadedData) {
+          loadedData = await tryLoadDataFile();
+        }
+
+        if (loadedData) {
+          if (Object.prototype.hasOwnProperty.call(loadedData, 'test')) {
+            resultDisplay.innerText = JSON.stringify(loadedData.test);
+          } else {
+            resultDisplay.innerText = JSON.stringify(loadedData);
+          }
+          return;
+        }
+
+        // fallback: no data available
+        resultDisplay.innerText = 'No build-time data available. Click "Use Demo Data" to load sample data, or run the build workflow to generate /data.json.';
+      } catch (err) {
+        console.error('Unexpected error', err);
+        resultDisplay.innerText = 'Unexpected error: ' + (err && err.message ? err.message : err);
+      }
+    });
+
+    demoBtn.addEventListener('click', () => {
+      loadedData = { test: 'demo-value', info: 'This is demo fallback data.' };
+      details.innerHTML = 'Demo data loaded locally; no secrets used.';
+      if (loadedData.test !== undefined) resultDisplay.innerText = JSON.stringify(loadedData.test);
+    });
+
+    // Try to pre-load the file so the first click is fast (non-blocking)
+    tryLoadDataFile().then(data => { if (data) loadedData = data; });
+  </script>
 </body>
 </html>
