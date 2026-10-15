@@ -3,63 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase One-Time Read</title>
+    <title>Firebase One-Time Read (public)</title>
 </head>
 <body>
 
-    <h2>Read Data From Firebase (One-Time)</h2>
-    <button id="readBtn">Fetch "test" Value</button>
+    <h2>Read Data (generated at build-time)</h2>
+    <button id="readBtn">Load "test" Value</button>
     
     <p>Database Result: <strong id="resultDisplay">Click the button to load data...</strong></p>
 
-    <!-- Firebase v10 SDK Scripts via CDN -->
-    <script type="module">
-        // Import the necessary functions from the modern Firebase modular CDN
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    <script>
+      // This client-side code runs in the browser and must never contain secrets.
+      // It fetches a build-time generated file (/data.json) that was created by
+      // a GitHub Actions build step which used a secret on the server-side.
 
-        // 1. YOUR FIREBASE CONFIGURATION
-        // Fill these variables out using the credentials found in your Firebase Console Settings
-        const secret = process.env.MY_SECRET;
-const firebaseConfig = {
-  apiKey: secret,
-  authDomain: "my-porject-2-47293.firebaseapp.com",
-  databaseURL: "https://my-porject-2-47293-default-rtdb.firebaseio.com",
-  projectId: "my-porject-2-47293",
-  storageBucket: "my-porject-2-47293.firebasestorage.app",
-  messagingSenderId: "827212742968",
-  appId: "1:827212742968:web:c3345bd5cc84c761cb41cd",
-  measurementId: "G-H7Z98XVEFT"
-};
+      const readBtn = document.getElementById('readBtn');
+      const resultDisplay = document.getElementById('resultDisplay');
 
-        // 2. Initialize Firebase and Get Database Instance
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+      readBtn.addEventListener('click', async () => {
+        resultDisplay.innerText = 'Loading...';
+        try {
+          const res = await fetch('/data.json', { cache: 'no-store' });
+          if (!res.ok) {
+            if (res.status === 404) {
+              resultDisplay.innerText = 'Data not found. Make sure the Actions build has run and generated /data.json.';
+            } else {
+              resultDisplay.innerText = 'Failed to load data: ' + res.status + ' ' + res.statusText;
+            }
+            return;
+          }
 
-        // 3. UI Elements
-        const readBtn = document.getElementById('readBtn');
-        const resultDisplay = document.getElementById('resultDisplay');
-
-        // 4. Fetch the data once when button is clicked
-        readBtn.addEventListener('click', () => {
-            resultDisplay.innerText = "Loading...";
-
-            // Create a reference pointing directly to the 'test' key in your database
-            const testRef = ref(db, 'test');
-
-            // 'get()' fetches the value exactly once (not realtime)
-            get(testRef).then((snapshot) => {
-                if (snapshot.exists()) {
-                    // Display the grabbed value on the screen
-                    resultDisplay.innerText = JSON.stringify(snapshot.val());
-                } else {
-                    resultDisplay.innerText = "No data available at path 'test'.";
-                }
-            }).catch((error) => {
-                console.error("Error pulling data:", error);
-                resultDisplay.innerText = "Error: " + error.message;
-            });
-        });
+          const data = await res.json();
+          // If the build script wrote the value under the key "test", show it
+          if (data && Object.prototype.hasOwnProperty.call(data, 'test')) {
+            resultDisplay.innerText = JSON.stringify(data.test);
+          } else {
+            // otherwise show the whole payload
+            resultDisplay.innerText = JSON.stringify(data);
+          }
+        } catch (err) {
+          console.error('Fetch error', err);
+          resultDisplay.innerText = 'Error fetching data: ' + (err.message || err);
+        }
+      });
     </script>
 </body>
 </html>
