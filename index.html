@@ -1,87 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Read Data (generated at build-time)</title>
-  <style>
-    body { font-family: system-ui, Arial, sans-serif; padding: 1.5rem; }
-    button { padding: .5rem 1rem; margin-right: .5rem; }
-    .hint { color: #666; font-size: .9rem; }
-    pre { background:#f6f8fa; padding: .75rem; border-radius:6px; overflow:auto; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase One-Time Read</title>
 </head>
 <body>
 
-  <h2>Read Data (generated at build-time)</h2>
-  <p class="hint">This page expects a build-time generated file at <code>/data.json</code>. If that file
-    doesn't exist the page will not crash — use the demo fallback or run the build workflow.</p>
+    <h2>Read Data From Firebase (One-Time)</h2>
+    <button id="readBtn">Fetch "test" Value</button>
+    
+    <p>Database Result: <strong id="resultDisplay">Click the button to load data...</strong></p>
 
-  <button id="readBtn">Load "test" Value</button>
-  <button id="demoBtn">Use Demo Data</button>
-  <p>Database Result: <strong id="resultDisplay">Click the button to load data...</strong></p>
+    <!-- Firebase v10 SDK Scripts via CDN -->
+    <script type="module">
+        // Import the necessary functions from the modern Firebase modular CDN
+        import { initializeApp } from "https://gstatic.com";
+        import { getDatabase, ref, get } from "https://gstatic.com";
 
-  <div id="details" style="margin-top:1rem"></div>
+        // 1. YOUR FIREBASE CONFIGURATION
+        // Fill these variables out using the credentials found in your Firebase Console Settings
+const firebaseConfig = {
+  apiKey: "AIzaSyDmyTC3MWk_i4kefgZbSnnlSpImO9w7yCg",
+  authDomain: "my-porject-2-47293.firebaseapp.com",
+  databaseURL: "https://my-porject-2-47293-default-rtdb.firebaseio.com",
+  projectId: "my-porject-2-47293",
+  storageBucket: "my-porject-2-47293.firebasestorage.app",
+  messagingSenderId: "827212742968",
+  appId: "1:827212742968:web:c3345bd5cc84c761cb41cd",
+  measurementId: "G-H7Z98XVEFT"
+};
 
-  <script>
-    const readBtn = document.getElementById('readBtn');
-    const demoBtn = document.getElementById('demoBtn');
-    const resultDisplay = document.getElementById('resultDisplay');
-    const details = document.getElementById('details');
+        // 2. Initialize Firebase and Get Database Instance
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-    // store loaded data here if fetch succeeds
-    let loadedData = null;
+        // 3. UI Elements
+        const readBtn = document.getElementById('readBtn');
+        const resultDisplay = document.getElementById('resultDisplay');
 
-    async function tryLoadDataFile() {
-      try {
-        const res = await fetch('/data.json', { cache: 'no-store' });
-        if (!res.ok) {
-          // Not found or other HTTP error; show friendly hint but do not throw
-          details.innerHTML = `Build data not found on server (HTTP ${res.status}). If you expect this to be present, run the Actions build that generates <code>/data.json</code>.`;
-          return null;
-        }
-        const data = await res.json();
-        details.innerHTML = 'Loaded build data from <code>/data.json</code>.';
-        return data;
-      } catch (err) {
-        // Network failure, CORS, or other issue — show friendly message
-        details.innerHTML = 'Could not fetch <code>/data.json</code> — network error or missing file. The page will use a demo fallback if you choose.';
-        return null;
-      }
-    }
+        // 4. Fetch the data once when button is clicked
+        readBtn.addEventListener('click', () => {
+            resultDisplay.innerText = "Loading...";
 
-    readBtn.addEventListener('click', async () => {
-      resultDisplay.innerText = 'Loading...';
-      try {
-        if (!loadedData) {
-          loadedData = await tryLoadDataFile();
-        }
+            // Create a reference pointing directly to the 'test' key in your database
+            const testRef = ref(db, 'test');
 
-        if (loadedData) {
-          if (Object.prototype.hasOwnProperty.call(loadedData, 'test')) {
-            resultDisplay.innerText = JSON.stringify(loadedData.test);
-          } else {
-            resultDisplay.innerText = JSON.stringify(loadedData);
-          }
-          return;
-        }
-
-        // fallback: no data available
-        resultDisplay.innerText = 'No build-time data available. Click "Use Demo Data" to load sample data, or run the build workflow to generate /data.json.';
-      } catch (err) {
-        console.error('Unexpected error', err);
-        resultDisplay.innerText = 'Unexpected error: ' + (err && err.message ? err.message : err);
-      }
-    });
-
-    demoBtn.addEventListener('click', () => {
-      loadedData = { test: 'demo-value', info: 'This is demo fallback data.' };
-      details.innerHTML = 'Demo data loaded locally; no secrets used.';
-      if (loadedData.test !== undefined) resultDisplay.innerText = JSON.stringify(loadedData.test);
-    });
-
-    // Try to pre-load the file so the first click is fast (non-blocking)
-    tryLoadDataFile().then(data => { if (data) loadedData = data; });
-  </script>
+            // 'get()' fetches the value exactly once (not realtime)
+            get(testRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    // Display the grabbed value on the screen
+                    resultDisplay.innerText = JSON.stringify(snapshot.val());
+                } else {
+                    resultDisplay.innerText = "No data available at path 'test'.";
+                }
+            }).catch((error) => {
+                console.error("Error pulling data:", error);
+                resultDisplay.innerText = "Error: " + error.message;
+            });
+        });
+    </script>
 </body>
 </html>
